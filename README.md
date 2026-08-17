@@ -44,8 +44,9 @@ pages.
 - Enable/disable toggle. Settings persist locally, per browser profile.
 - Style: **Filter** inverts the whole page and re-inverts images. Works on every NetSuite
   screen, including record forms, saved searches, iframes, and popups. **Native** restyles
-  NetSuite's own elements (tables, inputs, buttons, portlets) with a hand-picked palette.
-  Cleaner look, but new or unusual pages may show light patches.
+  NetSuite's own elements (tables, inputs, buttons, portlets) with a hand-picked palette,
+  then darkens any light frames left over at runtime. Cleaner look; a page NetSuite builds in
+  an unusual way can still show the occasional light patch.
 - Brightness, contrast, warmth sliders (Filter only). Warmth adds a little sepia so the page
   is not blue-white on invert.
 - Keep dark areas dark (Filter only): the parts of NetSuite that are already dark — the
@@ -140,12 +141,22 @@ netsuite-dark/        the extension — this is the folder you Load unpacked
 build.sh              builds the release zip
 ```
 
+## Tests
+`node test/logic.test.js` — 41 checks over the parts that decide whether and what to style:
+exclusions and Suitelet keys, schedule windows, frame handling, the CSS each mode emits, and
+regressions for the two subtle bugs below. No browser required, runs in about a second.
+
 ## Releasing
 `./build.sh` validates the manifest and JS, then writes `netsuite-dark-mode-<version>.zip`.
 Attach that to a GitHub Release. The zip is gitignored on purpose — it goes stale as soon as
 a source file changes, so it is built on demand rather than committed.
 
 ## Version history
+- **1.4** — Native mode closes its own light patches: empty light frames and spacers are
+  darkened at runtime, so portlet borders no longer show as white bands, and decorative
+  header art is dropped. Fixed styling being gated behind `requestAnimationFrame`, which
+  Chrome never fires in a hidden tab — records opened in background tabs loaded unstyled and
+  only went dark once focused. Added a regression test suite.
 - **1.3** — Filter mode rebuilt. Removed the `[style*="background-image"]` un-invert rule
   that turned whole containers bright and broke dropdown positioning; already-dark NetSuite
   chrome is now detected and kept dark instead of inverting to glaring light bands (new

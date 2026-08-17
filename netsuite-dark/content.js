@@ -23,7 +23,9 @@ const DEFAULTS = {
       descendants. Sprinkling it over arbitrary containers mispositions NetSuite's
       dropdowns and popups. Keep the set small and deliberate.                            */
 
-const KEEP = "nsdm-keep-dark";              // marks regions NetSuite already draws dark
+const KEEP = "nsdm-keep-dark";   // filter mode: regions NetSuite already draws dark
+const WRAP = "nsdm-dark-wrap";   // native mode: empty light frames and spacers
+const FLAT = "nsdm-flat";        // native mode: decorative background art to drop
 
 function filterRootCSS(s) {
   const base = `invert(1) hue-rotate(180deg) brightness(${s.brightness}%) contrast(${s.contrast}%) sepia(${s.warmth}%)`;
@@ -174,6 +176,11 @@ a:hover { color: #a5d0f7 !important; }
 img[src*="icon"], img[src*="Icon"], img[src*="i/"], svg.n-icon, .n-icon svg { filter: invert(0.85) hue-rotate(180deg) !important; }
 img[src*="logo"], .ns-logo img, .ns-header-logo img { filter: none !important; }
 
+/* Frames and spacers found at runtime. NetSuite builds portlet borders out of empty
+   elements, so these are darkened by measurement rather than by selector name. */
+.${WRAP} { background-color: ${surface} !important; }
+.${FLAT} { background-image: none !important; }
+
 /* Scrollbars */
 ::-webkit-scrollbar { width: 12px; height: 12px; }
 ::-webkit-scrollbar-track { background: ${bg}; }
@@ -266,6 +273,44 @@ function tagDarkRegions() {
   for (const el of found) el.classList.add(KEEP);
 }
 
+/* ---------- Native mode: close the light patches ----------
+   A selector list can only style elements someone has named, and NetSuite frames its
+   portlets with empty spacer elements that no list will ever cover. Those are found by
+   measurement instead. The safety rule is text: an element holding no text anywhere inside
+   cannot be given a contrast problem by darkening it, so only empty elements qualify and
+   anything carrying a word is left to the palette above. */
+function isEmpty(el) { return el.textContent.trim() === ""; }
+function tagLightWrappers() {
+  if (!document.body) return;
+  if (!(current.mode === "native" && active(current))) {
+    for (const el of document.querySelectorAll(`.${WRAP}, .${FLAT}`)) el.classList.remove(WRAP, FLAT);
+    return;
+  }
+  let budget = 4000;
+  for (const el of document.body.querySelectorAll("*")) {
+    if (--budget < 0) break;
+    if (!isEmpty(el)) continue;
+    const r = el.getBoundingClientRect();
+    if (r.width < 8 || r.height < 4 || r.width * r.height < 300) continue;
+
+    /* Tags are sticky, and deliberately so. Darkening an element changes the very property
+       this scan reads, so re-measuring something we already painted would see our own dark
+       surface, judge it "not light", untag it, and let it flash white again on the next
+       pass. Decide once per element; clear the tags only when the mode turns off. */
+    if (!el.classList.contains(WRAP)) {
+      const l = bgLuminance(el);
+      if (l !== null && l > 0.7) el.classList.add(WRAP);
+    }
+    // Decorative art — themed header bands, portlet corner sprites. The size floor is kept
+    // well above icon dimensions so a sprite that IS the icon never disappears.
+    if (!el.classList.contains(FLAT) && (r.width >= 200 || r.height >= 120)
+        && getComputedStyle(el).backgroundImage !== "none") {
+      el.classList.add(FLAT);
+    }
+  }
+}
+function rescan() { tagDarkRegions(); tagLightWrappers(); }
+
 function styleEl() {
   let el = document.getElementById(STYLE_ID);
   if (!el) {
@@ -280,17 +325,27 @@ function apply(s) {
   const css = build(s);
   if (el.textContent !== css) el.textContent = css;
 }
-function schedule(patch) {
+/* Coalesces bursts of updates (a slider drag) into one restyle.
+
+   Chrome does not fire requestAnimationFrame in a hidden tab, and NetSuite work is full of
+   records cmd-clicked into background tabs. Gating the styling on rAF alone meant those
+   tabs loaded unstyled and only went dark when you switched to them — a flash of light
+   content at exactly the wrong moment. So a timer races the frame, whichever comes first
+   wins, and the first application never waits for either. */
+function schedule(patch, now) {
   current = { ...current, ...patch };
+  if (now) { pending = false; apply(current); rescan(); return; }
   if (pending) return;
   pending = true;
-  requestAnimationFrame(() => { pending = false; apply(current); tagDarkRegions(); });
+  const run = () => { if (!pending) return; pending = false; apply(current); rescan(); };
+  requestAnimationFrame(run);
+  setTimeout(run, 100);
 }
 
 /* NetSuite paints portlets and frame content well after load, so re-measure a few times
    instead of running a permanent observer over a very large DOM. */
-function rescanLater() { [400, 1500, 4000].forEach(ms => setTimeout(tagDarkRegions, ms)); }
-document.addEventListener("DOMContentLoaded", () => { tagDarkRegions(); rescanLater(); });
+function rescanLater() { [400, 1500, 4000].forEach(ms => setTimeout(rescan, ms)); }
+document.addEventListener("DOMContentLoaded", () => { rescan(); rescanLater(); });
 window.addEventListener("load", rescanLater);
 
 /* Storage is async, so the first paint can land before settings arrive. Paint a neutral
@@ -298,7 +353,8 @@ window.addEventListener("load", rescanLater);
    later. Top frame only: a dark frame background would invert to white under filter mode. */
 if (isTop) styleEl().textContent = `html, body { background: #15181c !important; }`;
 
-chrome.storage.local.get(DEFAULTS, (s) => { booted = true; schedule({ ...DEFAULTS, ...s }); });
+// Apply the moment settings arrive — never one frame later, never not at all.
+chrome.storage.local.get(DEFAULTS, (s) => { booted = true; schedule({ ...DEFAULTS, ...s }, true); });
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== "local") return;
   const patch = {};
