@@ -1,0 +1,41 @@
+{
+  "manifest_version": 3,
+  "name": "NetSuite Dark Mode",
+  "version": "1.3.0",
+  "description": "Dark mode for NetSuite with adjustable brightness, contrast, warmth, presets, schedule, and per-page exclusions.",
+  "minimum_chrome_version": "88",
+  "permissions": ["storage"],
+  "host_permissions": ["*://*.netsuite.com/*"],
+  "background": { "service_worker": "background.js" },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "NetSuite Dark Mode",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "commands": {
+    "toggle-dark": {
+      "suggested_key": { "default": "Alt+Shift+D", "mac": "Alt+Shift+D" },
+      "description": "Toggle NetSuite dark mode"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.netsuite.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_start",
+      "all_frames": true,
+      "match_about_blank": true
+    }
+  ]
+}

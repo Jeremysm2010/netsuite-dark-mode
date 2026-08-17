@@ -1,0 +1,169 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>NetSuite Dark Mode</title>
+<style>
+  /* Chrome / Material 3 tokens. Follows the browser theme. */
+  :root {
+    --bg:#ffffff; --surface:#f2f2f2; --surface-2:#e9eef6; --on:#1f1f1f; --on-var:#444746;
+    --outline:#c4c7c5; --outline-var:#e3e3e3; --primary:#0b57d0; --on-primary:#ffffff;
+    --primary-container:#d3e3fd; --on-primary-container:#041e49; --secondary-container:#e8f0fe;
+    --hover:rgba(31,31,31,.08); --focus:#0b57d0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:#1f1f1f; --surface:#282a2c; --surface-2:#333537; --on:#e3e3e3; --on-var:#c4c7c5;
+      --outline:#8e918f; --outline-var:#444746; --primary:#a8c7fa; --on-primary:#062e6f;
+      --primary-container:#0842a0; --on-primary-container:#d3e3fd; --secondary-container:#004a77;
+      --hover:rgba(227,227,227,.08); --focus:#a8c7fa;
+    }
+  }
+  * { box-sizing:border-box; }
+  html, body { margin:0; }
+  body { width:360px; background:var(--bg); color:var(--on);
+    font:13px/20px "Google Sans Text","Google Sans",Roboto,system-ui,-apple-system,"Segoe UI",sans-serif;
+    -webkit-font-smoothing:antialiased; }
+  h1 { font:500 16px/24px "Google Sans",Roboto,system-ui,sans-serif; margin:0; letter-spacing:0; }
+  h2 { font:500 11px/16px Roboto,system-ui,sans-serif; letter-spacing:.5px; text-transform:none; color:var(--on-var); margin:0; padding:12px 20px 4px; }
+
+  /* Header row with master switch */
+  header { display:flex; align-items:center; justify-content:space-between; padding:16px 20px 12px; }
+  header small { display:block; color:var(--on-var); font-size:12px; line-height:16px; }
+
+  /* MD3 switch */
+  .switch { position:relative; width:52px; height:32px; flex:none; }
+  .switch input { position:absolute; opacity:0; inset:0; margin:0; cursor:pointer; }
+  .track { position:absolute; inset:0; border-radius:16px; background:var(--surface-2); border:2px solid var(--outline); transition:background .15s,border-color .15s; }
+  .track::after { content:""; position:absolute; width:16px; height:16px; left:6px; top:6px; border-radius:50%; background:var(--outline); transition:all .15s cubic-bezier(.2,0,0,1); }
+  .switch input:checked + .track { background:var(--primary); border-color:var(--primary); }
+  .switch input:checked + .track::after { width:24px; height:24px; left:22px; top:2px; background:var(--on-primary); }
+  .switch input:focus-visible + .track { outline:2px solid var(--focus); outline-offset:2px; }
+
+  main.off section:not(.always) { opacity:.38; pointer-events:none; }
+  section { padding:4px 0 8px; }
+  section + section { border-top:1px solid var(--outline-var); }
+
+  /* Chrome settings-style row */
+  .row { min-height:40px; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:4px 20px; }
+  .row .lbl { color:var(--on); min-width:0; }
+  .row .lbl.trunc { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .row .sub { display:block; color:var(--on-var); font-size:12px; line-height:16px; }
+  .note { color:var(--on-var); font-size:12px; line-height:16px; padding:0 20px 8px; margin:0; }
+
+  /* Segmented button (MD3) */
+  .seg { display:inline-flex; flex:none; border:1px solid var(--outline); border-radius:20px; overflow:hidden; height:32px; }
+  .seg button { background:transparent; border:0; border-left:1px solid var(--outline); color:var(--on); padding:0 12px; font:500 12px Roboto,system-ui,sans-serif; cursor:pointer; white-space:nowrap; }
+  .seg button:first-child { border-left:0; }
+  .seg button:hover { background:var(--hover); }
+  .seg button.on { background:var(--secondary-container); color:var(--on); }
+  .seg button.on::before { content:"✓"; font-size:11px; margin-right:5px; }
+  .seg button:focus-visible { outline:2px solid var(--focus); outline-offset:-2px; }
+
+  /* Filter chips (MD3 assist chips) */
+  .chips { display:flex; gap:8px; }
+  .chips button { height:32px; padding:0 14px; border-radius:8px; border:1px solid var(--outline); background:transparent; color:var(--on); font:500 12px Roboto,system-ui,sans-serif; cursor:pointer; }
+  .chips button:hover { background:var(--hover); }
+  .chips button:focus-visible { outline:2px solid var(--focus); outline-offset:1px; }
+
+  /* Sliders (Chrome cr-slider look) */
+  .slider { padding:2px 20px 4px; }
+  .slider label { display:flex; justify-content:space-between; color:var(--on); }
+  .slider output { color:var(--on-var); font-variant-numeric:tabular-nums; font-size:12px; }
+  input[type=range] { -webkit-appearance:none; width:100%; height:24px; background:transparent; margin:0; }
+  input[type=range]::-webkit-slider-runnable-track { height:4px; border-radius:2px; background:var(--surface-2); }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:16px; height:16px; margin-top:-6px; border-radius:50%; background:var(--primary); border:0; box-shadow:0 0 0 0 transparent; transition:box-shadow .12s; }
+  input[type=range]:hover::-webkit-slider-thumb, input[type=range]:active::-webkit-slider-thumb { box-shadow:0 0 0 8px color-mix(in srgb, var(--primary) 16%, transparent); }
+  input[type=range]:focus-visible { outline:none; }
+  input[type=range]:focus-visible::-webkit-slider-thumb { outline:2px solid var(--focus); outline-offset:2px; }
+
+  /* Checkbox */
+  input[type=checkbox].box { width:18px; height:18px; accent-color:var(--primary); margin:0; cursor:pointer; }
+
+  /* Select (Chrome md-select) */
+  select { appearance:none; -webkit-appearance:none; height:32px; padding:0 28px 0 12px; border:1px solid var(--outline); border-radius:8px; background:var(--bg) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%238e918f' stroke-width='1.5'/></svg>") no-repeat right 10px center; color:var(--on); font:inherit; font-size:12px; cursor:pointer; }
+  select:hover { background-color:var(--surface); }
+  select:focus-visible { outline:2px solid var(--focus); outline-offset:-1px; }
+  #hours { display:none; }
+  #hours span { display:flex; align-items:center; gap:6px; color:var(--on-var); font-size:12px; }
+
+  /* Buttons */
+  .btn { height:32px; padding:0 16px; border-radius:16px; border:1px solid var(--outline); background:transparent; color:var(--primary); font:500 13px "Google Sans",Roboto,system-ui,sans-serif; cursor:pointer; white-space:nowrap; }
+  .btn:hover { background:var(--hover); }
+  .btn:disabled { opacity:.38; cursor:default; }
+  .btn:focus-visible { outline:2px solid var(--focus); outline-offset:1px; }
+  .btn.text { border:0; padding:0 8px; }
+
+  /* Exclusion list */
+  .exlist { display:flex; flex-direction:column; }
+  .exlist div { display:flex; align-items:center; justify-content:space-between; gap:8px; min-height:36px; padding:0 8px 0 20px; }
+  .exlist div:hover { background:var(--hover); }
+  .exlist code { font:12px/16px Roboto Mono,ui-monospace,Menlo,monospace; color:var(--on); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .exlist button { flex:none; width:32px; height:32px; border:0; border-radius:50%; background:transparent; color:var(--on-var); font-size:18px; line-height:1; cursor:pointer; }
+  .exlist button:hover { background:var(--hover); color:var(--on); }
+
+  footer { display:flex; align-items:center; justify-content:space-between; padding:8px 12px 12px 20px; border-top:1px solid var(--outline-var); color:var(--on-var); font-size:12px; }
+  kbd { font:12px Roboto Mono,ui-monospace,Menlo,monospace; color:var(--on); }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>NetSuite Dark Mode</h1>
+    <small><kbd>Alt+Shift+D</kbd> toggles from any tab</small>
+  </div>
+  <label class="switch" title="Turn dark mode on or off"><input type="checkbox" id="enabled"><span class="track"></span></label>
+</header>
+<main id="main">
+  <section>
+    <h2>Appearance</h2>
+    <div class="row">
+      <span class="lbl">Style</span>
+      <div class="seg" id="modes" role="group" aria-label="Style"><button data-mode="filter">Filter</button><button data-mode="native">Native</button></div>
+    </div>
+    <p class="note" id="native-note">Native restyles NetSuite's own elements. Cleaner, but new pages may show light patches.</p>
+    <div id="filter-controls">
+      <div class="row">
+        <span class="lbl">Preset</span>
+        <div class="chips" id="presets"><button data-p="night">Night</button><button data-p="dim">Dim</button><button data-p="warm">Warm</button></div>
+      </div>
+      <div class="slider"><label>Brightness <output id="v-brightness"></output></label><input type="range" id="brightness" min="60" max="120" step="1"></div>
+      <div class="slider"><label>Contrast <output id="v-contrast"></output></label><input type="range" id="contrast" min="80" max="120" step="1"></div>
+      <div class="slider"><label>Warmth <output id="v-warmth"></output></label><input type="range" id="warmth" min="0" max="40" step="1"></div>
+      <div class="row">
+        <label class="lbl" for="keepDark">Keep dark areas dark<span class="sub">Stops NetSuite's own dark bars turning bright</span></label>
+        <input class="box" type="checkbox" id="keepDark">
+      </div>
+      <div class="row">
+        <label class="lbl" for="keepImages">Keep images true to color<span class="sub">Logos and photos aren't inverted</span></label>
+        <input class="box" type="checkbox" id="keepImages">
+      </div>
+    </div>
+  </section>
+  <section>
+    <h2>Schedule</h2>
+    <div class="row">
+      <span class="lbl">Turn on</span>
+      <div class="seg" id="sched" role="group" aria-label="Turn on"><button data-s="always">Always</button><button data-s="system">With device</button><button data-s="hours">Custom</button></div>
+    </div>
+    <div class="row" id="hours">
+      <span class="lbl">Between</span>
+      <span><select id="from"></select> and <select id="to"></select></span>
+    </div>
+  </section>
+  <section>
+    <h2>Pages that stay light</h2>
+    <div class="row">
+      <span class="lbl trunc" id="skip-note">Open a NetSuite tab to add a page.</span>
+      <button class="btn" id="skip">Add this page</button>
+    </div>
+    <div class="exlist" id="exlist"></div>
+  </section>
+</main>
+<footer>
+  <span id="status" aria-live="polite">Changes apply live</span>
+  <button class="btn text" id="reset">Reset</button>
+</footer>
+<script src="popup.js"></script>
+</body>
+</html>

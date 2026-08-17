@@ -1,0 +1,12 @@
+# macOS
+.DS_Store
+._*
+
+# Build output — built by build.sh, published on Releases, never committed
+*.zip
+dist/
+
+# Editor / tooling
+.vscode/
+.idea/
+*.swp
